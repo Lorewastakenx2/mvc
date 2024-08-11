@@ -7,7 +7,12 @@ from architecture.event.event import Event
 import logging
 import tkinter as tk
 
+"""
+TODO:
 
+    - register_parent is accessible from controllers, it shouldnt be as its used during register_controllable
+
+"""
 
 if __name__ == '__main__':
 

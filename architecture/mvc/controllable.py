@@ -18,7 +18,7 @@ class i_Controllable:
 
 
     @abstractmethod
-    def dispatch_event(self, event: Event, exception_handlers: tuple=()) -> None:
+    def dispatch_event(self, event: Event, exception_handlers: dict={}) -> None:
         """
         wrapper method for the owned event dispatcher.
         only exists to add the "caller" argument to the event dispatcher.

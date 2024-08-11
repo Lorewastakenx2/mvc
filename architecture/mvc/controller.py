@@ -33,35 +33,11 @@ class i_Controller:
         parameters in the controllable.
         """
 
-    #@abstractmethod
-    #def register_parent(self, parent: Hierarchy) -> None:
-    #    """
-    #    overriding method from hierarchy.
-    #    used to link controllers.
-    #    """
-
-
     @abstractmethod
     def register_event(self, event: Event, callback: Callable) -> None:
         """
         
         """
-
-    # below method cannot be accessed.
-    # logic is handled in event
-
-    #@abstractmethod
-    #def _handle_event(self, caller: Controllable, event: Event, exception_handlers: dict={}) -> None:
-    #    """
-    #    wrapper for the controller's owned event handler.
-    #    is protected as it should not be accessed by user.
-    #    the method is only accessed by controllables.
-    #
-    #    if the event is not registered to the handler, the
-    #    controller relays the event to its parent.
-    #    this is done with error handling.
-    #    """
-
 
     @property
     @abstractmethod
@@ -156,24 +132,6 @@ class Controller(i_Controller, Controllable, Hierarchy):
             raise ValueError
 
         self.__event_handler.register_callback(event_id=event_id, callback=callback)
-
-
-    #def _handle_event(self, caller: Controllable, event: Event, exception_handlers: dict={}) -> None:
-    #    
-    #    logger.debug(
-    #        msg=f'*** handling event *** event_handler={self}, caller={caller}, event={event}'
-    #    )
-    #
-    #    self.__event_handler._handle_event(caller=caller, event=event, exception_handlers=exception_handlers)
-
-        #try:
-        #    self.__event_handler._handle_event(caller=caller, event=event, exception_handlers=exception_handlers)
-        #except Exception as err:
-        #
-        #    if isinstance(err, event_handler_errors.EventNotRegisteredError):
-        #        self.__relay_event(caller=caller, event=event, exception_handlers=exception_handlers)
-        #    else:
-        #        raise err
 
 
     def __relay_event(self, caller: Controllable, event: Event, err: Exception) -> None:

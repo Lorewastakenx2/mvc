@@ -4,6 +4,15 @@ import logging
 from abc import abstractmethod
 
 
+"""
+TODO:
+
+fix so that 
+
+set-, get-, and is_toplevel are class methods
+
+"""
+
 
 class i_Hierarchy:
 
@@ -34,7 +43,8 @@ class i_Hierarchy:
     @abstractmethod
     def _register_child(self, child: object) -> None:
         """
-        
+        should not be used.
+        is used while registering parent.
         """
 
     @property

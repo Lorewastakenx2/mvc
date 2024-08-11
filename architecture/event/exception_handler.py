@@ -10,12 +10,6 @@ from typing import Any
 class i_ExceptionHandler:
 
     @abstractmethod
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        """
-        
-        """
-
-    @abstractmethod
     def __call__(self, caller: object, event: Event, err: Exception) -> None:
         """
         
@@ -29,10 +23,6 @@ class i_ExceptionHandler:
 
 
 class ExceptionHandler(ABC, i_ExceptionHandler):
-
-    @abstractmethod
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
 
     def __call__(self, caller: object, event: Event, err: Exception) -> None:
         logger.debug(
