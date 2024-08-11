@@ -8,7 +8,7 @@ class i_Event:
 
     @property
     @abstractmethod
-    def identification(self) -> Hashable:
+    def id(self) -> Hashable:
         """
         
         """
@@ -23,20 +23,20 @@ class i_Event:
 
 class Event(i_Event):
     
-    def __init__(self, identification: Hashable, payload: dict={}) -> None:
+    def __init__(self, id: Hashable, payload: dict={}) -> None:
         
-        self.__identification: Hashable = identification
+        self.__id: Hashable = id
         self.__payload: dict = payload
 
     def __hash__(self) -> int:
-        return hash(self.__identification)
+        return hash(self.__id)
     
     def __str__(self) -> str:
-        return f'Event(identification={self.__identification}, payload={self.__payload})'
+        return f'Event(id={self.__id}, payload={self.__payload})'
     
     @property
-    def identification(self) -> Hashable:
-        return self.__identification
+    def id(self) -> Hashable:
+        return self.__id
 
     @property
     def payload(self) -> dict:

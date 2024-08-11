@@ -1,6 +1,6 @@
 
 from architecture.event.event import Event
-from architecture.event.event_handler_callback import EventHandlerCallback
+from architecture.event.event_callback import EventHandlerCallback
 from logs import event_logger as logger
 
 from abc import abstractmethod
