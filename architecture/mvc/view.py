@@ -59,4 +59,8 @@ class View(i_View, Controllable):
                 
         self.__frame = tk.Frame(master=master)
 
+        logger.debug(
+            msg=f'*** frame initialized *** owner={self}'
+        )
+
 

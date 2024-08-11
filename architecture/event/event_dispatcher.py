@@ -41,10 +41,13 @@ class EventDispatcher(i_EventDispatcher):
         self.__event_handler = handler
 
         logger.debug(
-            msg=f'*** event handler registered *** dispatcher={self}, handler={handler}'
+            msg=f'*** event handler registered *** event_dispatcher={self}, event_handler={handler}'
         )
         
 
     def dispatch_event(self, caller: object, event: Event, ignored_exceptions: tuple=()) -> None:
+        logger.debug(
+            msg=f'*** dispatching event *** event_dispatcher={self}, event={event}, ignored_exceptions={ignored_exceptions}'
+        )
         self.__event_handler.handle_event(caller=caller, event=event, ignored_exceptions=ignored_exceptions)
     

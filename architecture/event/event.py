@@ -31,6 +31,9 @@ class Event(i_Event):
     def __hash__(self) -> int:
         return hash(self.__identification)
     
+    def __str__(self) -> str:
+        return f'Event(identification={self.__identification}, payload={self.__payload})'
+    
     @property
     def identification(self) -> Hashable:
         return self.__identification

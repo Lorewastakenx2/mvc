@@ -38,6 +38,10 @@ class Controllable(i_Controllable):
         return self.__event_dispatcher
 
     def dispatch_event(self, event: Event, ignored_exceptions: tuple = ()) -> None:
+        
+        logger.debug(
+            msg=f'*** dispatching event *** event_dispatcher={self}, event={event}, ignored_exceptions={ignored_exceptions}'
+        )
 
         _event: Event = None
         if isinstance(event, Event):

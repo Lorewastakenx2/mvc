@@ -13,7 +13,7 @@ if __name__ == '__main__':
 
     logging.basicConfig(
         level=logging.DEBUG, 
-        format='%(asctime)s - %(levelname)s - %(message)s'
+        format='%(asctime)s - %(levelname)s - %(name)s - %(message)s'
     )
 
 
@@ -24,15 +24,17 @@ if __name__ == '__main__':
     App.register_controllable(controllable=Model())
     App.register_controllable(controllable=View())
 
+    widget: Controller = Controller()
+    widget.register_controllable(controllable=Model())
+    widget.register_controllable(controllable=View())
+
     App.initialize_view_frames_tk(master=root)
+    
+    widget.register_event(event='widget_level_event', callback=lambda: None)
+    App.register_event(event='toplevel_event', callback=lambda: None)
 
-    App.register_event(event='id_only', callback=lambda: print('id_only event fired'))
-    App.register_event(event=Event(identification='full_event'), callback=lambda: print('full_event event fired'))
-
-    App.view.dispatch_event(event='id_only')
-    App.view.dispatch_event(event=Event(identification='full_event'))
-
-
+    widget.view.dispatch_event(event='widget_level_event')
+    widget.view.dispatch_event(event='toplevel_event')
 
 
     #root.mainloop()

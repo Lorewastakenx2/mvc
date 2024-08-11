@@ -116,6 +116,10 @@ class Controller(i_Controller, Controllable, Hierarchy):
         
     def register_event(self, event: Event, callback: Callable) -> None:
 
+        logger.debug(
+            msg=f'*** registering event *** event_handler={self}, event={event}, callback={callback}'
+        )
+
         identification: Hashable = None
         if isinstance(event, Event):
             identification = event.identification
@@ -131,6 +135,10 @@ class Controller(i_Controller, Controllable, Hierarchy):
 
     def _handle_event(self, caller: Controllable, event: Event, ignored_exceptions: tuple=()) -> None:
         
+        logger.debug(
+            msg=f'*** handling event *** event_handler={self}, caller={caller}, event={event}, ignored_exceptions={ignored_exceptions}'
+        )
+
         try:
             self.__event_handler.handle_event(caller=caller, event=event, ignored_exceptions=ignored_exceptions)
         except Exception as err:
@@ -142,6 +150,10 @@ class Controller(i_Controller, Controllable, Hierarchy):
 
     def __relay_event(self, caller: Controllable, event: Event, ignored_exceptions: tuple) -> None:
         
+        logger.debug(
+            msg=f'*** relaying event ***'
+        )
+
         if self.is_toplevel():
             raise errors.FloatingEventError
         
