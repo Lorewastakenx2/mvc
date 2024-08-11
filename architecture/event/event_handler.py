@@ -32,9 +32,10 @@ class i_EventHandler:
 
 
     @abstractmethod
-    def handle_event(self, caller: object, event: t_Event, exception_handlers: dict={}) -> None:
+    def _handle_event(self, caller: object, event: t_Event, exception_handlers: dict={}) -> None:
         """
-        
+        protected method.
+        should only be accessed by event dispatchers.
         """
 
 
@@ -48,7 +49,7 @@ class EventHandler(i_EventHandler):
         self.__registered_callbacks: dict = {}
 
 
-    def register_event_handler_callback(self, event_id: Hashable, callback: Callable) -> None:
+    def register_callback(self, event_id: Hashable, callback: Callable) -> None:
         
         if event_id in self.__registered_callbacks:
             raise PermissionError
@@ -89,7 +90,7 @@ class EventHandler(i_EventHandler):
         )
 
 
-    def handle_event(self, caller: object, event: t_Event, exception_handlers: dict={}) -> None:
+    def _handle_event(self, caller: object, event: t_Event, exception_handlers: dict={}) -> None:
 
         logger.debug(
             msg=f'*** handling event *** handler={self}, caller={caller}, event={event}'
@@ -101,7 +102,7 @@ class EventHandler(i_EventHandler):
         if isinstance(event, Event):
             _event = event
         elif isinstance(event, Hashable):
-            _event = Event(id=_event)
+            _event = Event(id=event)
         else:
             raise ValueError
 

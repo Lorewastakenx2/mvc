@@ -7,6 +7,13 @@ from logs import mvc_logger as logger
 from abc import abstractmethod
 from typing import Hashable
 
+"""
+controllable is owned by controller.
+controllable has no knowledge of controller.
+controllable owns an event dispatcher which is linked to the controller's event handler.
+"""
+
+
 class i_Controllable:
 
 
