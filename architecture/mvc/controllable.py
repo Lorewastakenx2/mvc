@@ -18,9 +18,10 @@ class i_Controllable:
 
 
     @abstractmethod
-    def dispatch_event(self, event: Event, ignored_exceptions: tuple=()) -> None:
+    def dispatch_event(self, event: Event, exception_handlers: tuple=()) -> None:
         """
-        wrapper method for the owned event dispatcher
+        wrapper method for the owned event dispatcher.
+        only exists to add the "caller" argument to the event dispatcher.
         """
 
     @property
@@ -44,20 +45,10 @@ class Controllable(i_Controllable):
     def _event_dispatcher(self) -> EventDispatcher:
         return self.__event_dispatcher
 
-    def dispatch_event(self, event: Event, ignored_exceptions: tuple = ()) -> None:
+    def dispatch_event(self, event: Event, exception_handlers: dict={}) -> None:
 
         logger.debug(
-            msg=f'*** dispatching event *** event_dispatcher={self}, event={event}, ignored_exceptions={ignored_exceptions}'
+            msg=f'*** dispatching event *** event_dispatcher={self}, event={event}, exception_handlers={exception_handlers}'
         )
 
-        _event: Event = None
-        if isinstance(event, Event):
-            _event = event
-        elif isinstance(event, str):
-            _event = Event(identification=event)
-        elif isinstance(event, Hashable):
-            _event = Event(identification=event)
-        else:
-            raise ValueError
-
-        self.__event_dispatcher.dispatch_event(caller=self, event=_event, ignored_exceptions=ignored_exceptions)
+        self.__event_dispatcher.dispatch_event(caller=self, event=event, exception_handlers=exception_handlers)

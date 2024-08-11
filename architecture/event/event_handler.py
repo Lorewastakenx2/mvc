@@ -1,6 +1,7 @@
 
 from architecture.event.event import Event
 from architecture.event.event_callback import EventHandlerCallback
+from architecture.event.exception_handler import ExceptionHandler
 from logs import event_logger as logger
 
 from abc import abstractmethod
@@ -57,10 +58,10 @@ class EventHandler(i_EventHandler):
         _callback: EventHandlerCallback = None
         if isinstance(callback, EventHandlerCallback):
             _callback = callback
-        else:
+        elif isinstance(callback, Callable):
 
             # if the registered callback is not of type EventHandlerCallback, 
-            # a wrapper is created dynamically in order to use the functionality,
+            # a wrapper is created dynamically in order to use the functionality
             # of the EvenHandlerCallback class
 
             logger.debug(
@@ -69,25 +70,28 @@ class EventHandler(i_EventHandler):
 
             class EventHandlerCallbackWrapper(EventHandlerCallback):
 
+                def __init__(self) -> None:
+                    self.__argspec: FullArgSpec = getfullargspec(callback)
+
                 def execute(self, caller: object, event: Event) -> None:
-                    
-                    argspec: FullArgSpec = getfullargspec(callback)
-                    if 'caller' in argspec.args and 'event' in argspec.args:
-                        callback(caller=caller, event=event)
-                    elif 'caller' in argspec.args:
-                        callback(caller=caller)
-                    elif 'event' in argspec.args:
-                        callback(event=event)
-                    else:
-                        callback()
+                    kwargs: dict = {}
+                    if 'caller' in self.__argspec.args:
+                        kwargs['caller'] = caller
+                    if 'event' in self.__argspec.args:
+                        kwargs['event'] = event            
+                    callback(**kwargs)
             
             _callback = EventHandlerCallbackWrapper()
-        
+        else:
+            raise ValueError
+
         self.__registered_callbacks[event_id] = _callback
 
         logger.debug(
             msg=f'*** callback registered *** event_id={event_id}, callback={_callback}'
         )
+
+    
 
 
     def _handle_event(self, caller: object, event: t_Event, exception_handlers: dict={}) -> None:
@@ -106,31 +110,32 @@ class EventHandler(i_EventHandler):
         else:
             raise ValueError
 
+
         try:
 
             if not self.__registered_callbacks:
                 raise errors.NoRegisteredEventsError
         
-            if not event.event_id in self.__registered_callbacks:
+            if not _event.id in self.__registered_callbacks:
                 raise errors.EventNotRegisteredError
 
-            callback: Callable = self.__registered_callbacks[event.event_id]
-            callback(caller=caller, event=event)
+            callback: Callable = self.__registered_callbacks[_event.id]
+            callback(caller=caller, event=_event)
 
         except Exception as err:
 
             logger.debug(
-                msg=f'*** exception occurred while handling event *** caller={caller}, event={event}, exception={err}'
+                msg=f'*** exception occurred while handling event *** caller={caller}, event={_event}, exception={err}'
             )
 
-            if isinstance(err, exception_handlers):
-                exception_handler: Callable = exception_handlers[err.__class__]
+            if isinstance(err, tuple(exception_handlers.keys())):
+                exception_handler: ExceptionHandler = exception_handlers[err.__class__]
                 if exception_handler:
-                    exception_handler()
-                    logger.debug(
-                        msg=f'*** exception handled ***'
-                    )
+                    exception_handler(caller=caller, event=event, err=err)
                 else:
+
+                    # if the exception handler field is empty, the exception is simply ignored
+
                     logger.debug(
                         msg=f'*** exception ignored ***'
                     )                    

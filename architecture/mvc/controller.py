@@ -5,6 +5,7 @@ from architecture.mvc.view import View, t_Master
 from architecture.event.event import Event
 from architecture.event.event_handler import EventHandler
 from architecture.event.event_handler import errors as event_handler_errors
+from architecture.event.exception_handler import ExceptionHandler
 from architecture.hierarchy import Hierarchy
 from logs import mvc_logger as logger
 
@@ -32,24 +33,35 @@ class i_Controller:
         parameters in the controllable.
         """
 
+    #@abstractmethod
+    #def register_parent(self, parent: Hierarchy) -> None:
+    #    """
+    #    overriding method from hierarchy.
+    #    used to link controllers.
+    #    """
+
+
     @abstractmethod
     def register_event(self, event: Event, callback: Callable) -> None:
         """
         
         """
 
+    # below method cannot be accessed.
+    # logic is handled in event
 
-    @abstractmethod
-    def _handle_event(self, caller: Controllable, event: Event, exception_handlers: dict={}) -> None:
-        """
-        wrapper for the controller's owned event handler.
-        is protected as it should not be accessed by user.
-        the method is only accessed by controllables.
+    #@abstractmethod
+    #def _handle_event(self, caller: Controllable, event: Event, exception_handlers: dict={}) -> None:
+    #    """
+    #    wrapper for the controller's owned event handler.
+    #    is protected as it should not be accessed by user.
+    #    the method is only accessed by controllables.
+    #
+    #    if the event is not registered to the handler, the
+    #    controller relays the event to its parent.
+    #    this is done with error handling.
+    #    """
 
-        if the event is not registered to the handler, the
-        controller relays the event to its parent.
-        this is done with error handling.
-        """
 
     @property
     @abstractmethod
@@ -66,7 +78,7 @@ class i_Controller:
         """
 
     @abstractmethod
-    def initialize_view_frames_tk(self, root: tk.Tk) -> None:
+    def initialize_tk_frames(self, root: tk.Tk) -> None:
         """
         
         """
@@ -79,10 +91,14 @@ class Controller(i_Controller, Controllable, Hierarchy):
             msg=f'*** initializing Controller *** controller={self}'
         )
         Hierarchy.__init__(self)
-        if not self.is_toplevel():
-            Controllable.__init__(self)
-        
 
+        if self.get_toplevel() is None: # all this shit should happen in hierarchy classs
+            self.set_toplevel()
+
+        if not self.is_toplevel():
+            Controllable.__init__(self) # TODO: have this be done during registration of parent
+                                        # or i dunno there are many things i dont like about the hierarchy class
+        
         self.__model: Model = None
         self.__view: View = None
         self.__event_handler: EventHandler = EventHandler()
@@ -99,10 +115,19 @@ class Controller(i_Controller, Controllable, Hierarchy):
         
         controllable._event_dispatcher.register_event_handler(handler=self.__event_handler)
 
+        controllable._event_dispatcher.register_standard_exception_handler(
+            exception=event_handler_errors.EventNotRegisteredError,
+            handler=self.__relay_event
+        )
+        controllable._event_dispatcher.register_standard_exception_handler(
+            exception=event_handler_errors.NoRegisteredEventsError,
+            handler=self.__relay_event
+        )
+
         # type specific registration
 
         if isinstance(controllable, Model):
-            if self.__view:
+            if self.__model:
                 raise PermissionError
             self.__model = controllable
         elif isinstance(controllable, View):
@@ -113,7 +138,7 @@ class Controller(i_Controller, Controllable, Hierarchy):
             controllable.register_parent(parent=self)
         else:
             raise ValueError
-        
+
     def register_event(self, event: Event, callback: Callable) -> None:
 
         logger.debug(
@@ -130,25 +155,28 @@ class Controller(i_Controller, Controllable, Hierarchy):
         else:
             raise ValueError
 
-        self.__event_handler.register_event_handler_callback(id=event_id, callback=callback)
+        self.__event_handler.register_callback(event_id=event_id, callback=callback)
 
 
-    def _handle_event(self, caller: Controllable, event: Event, exception_handlers: dict={}) -> None:
-        
-        logger.debug(
-            msg=f'*** handling event *** event_handler={self}, caller={caller}, event={event}'
-        )
+    #def _handle_event(self, caller: Controllable, event: Event, exception_handlers: dict={}) -> None:
+    #    
+    #    logger.debug(
+    #        msg=f'*** handling event *** event_handler={self}, caller={caller}, event={event}'
+    #    )
+    #
+    #    self.__event_handler._handle_event(caller=caller, event=event, exception_handlers=exception_handlers)
 
-        try:
-            self.__event_handler.handle_event(caller=caller, event=event, exception_handlers=exception_handlers)
-        except Exception as err:
+        #try:
+        #    self.__event_handler._handle_event(caller=caller, event=event, exception_handlers=exception_handlers)
+        #except Exception as err:
+        #
+        #    if isinstance(err, event_handler_errors.EventNotRegisteredError):
+        #        self.__relay_event(caller=caller, event=event, exception_handlers=exception_handlers)
+        #    else:
+        #        raise err
 
-            if isinstance(err, event_handler_errors.EventNotRegisteredError):
-                self.__relay_event(caller=caller, event=event, exception_handlers=exception_handlers)
-            else:
-                raise err
 
-    def __relay_event(self, caller: Controllable, event: Event, exception_handlers: tuple) -> None:
+    def __relay_event(self, caller: Controllable, event: Event, err: Exception) -> None:
         
         logger.debug(
             msg=f'*** relaying event ***'
@@ -157,10 +185,10 @@ class Controller(i_Controller, Controllable, Hierarchy):
         if self.is_toplevel():
             raise errors.FloatingEventError
         
-        self._event_dispatcher.dispatch_event(caller=caller, event=event, exception_handlers=exception_handlers)
+        self._event_dispatcher.dispatch_event(caller=caller, event=event)
 
 
-    def initialize_view_frames_tk(self, master: t_Master) -> None:
+    def initialize_tk_frames(self, master: t_Master) -> None:
 
         if self.is_toplevel():
             if not isinstance(master, tk.Tk):
@@ -173,5 +201,5 @@ class Controller(i_Controller, Controllable, Hierarchy):
         if self.children:
             for _child in self.children:
                 child: Controller = _child
-                child.initialize_view_frames_tk(master=self.view.frame)
+                child.initialize_tk_frames(master=self.view.frame)
         

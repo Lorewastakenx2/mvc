@@ -24,19 +24,8 @@ if __name__ == '__main__':
     App.register_controllable(controllable=Model())
     App.register_controllable(controllable=View())
 
-    widget: Controller = Controller()
-    widget.register_controllable(controllable=Model())
-    widget.register_controllable(controllable=View())
+    App.initialize_tk_frames(master=root)
 
-    App.initialize_view_frames_tk(master=root)
-    
-    widget.register_event(event='widget_level_event', callback=lambda: None)
-    App.register_event(event='toplevel_event', callback=lambda: None)
-
-    widget.view.dispatch_event(event='widget_level_event')
-    widget.view.dispatch_event(event='toplevel_event')
-
-
-    #root.mainloop()
+    root.mainloop()
 
     print('... done')
