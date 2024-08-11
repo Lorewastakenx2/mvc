@@ -11,14 +11,14 @@ class i_EventDispatcher:
 
 
     @abstractmethod
-    def register_event_handler(self, handler: EventHandler) -> None:
+    def register_handler(self, handler: EventHandler) -> None:
         """
         
         """
 
 
     @abstractmethod
-    def dispatch_event(self, caller: object, event: Event, ignored_exceptions: tuple=()) -> None:
+    def dispatch_event(self, caller: object, event: Event, exception_handlers: dict={}) -> None:
         """
         
         """
@@ -45,9 +45,9 @@ class EventDispatcher(i_EventDispatcher):
         )
         
 
-    def dispatch_event(self, caller: object, event: Event, ignored_exceptions: tuple=()) -> None:
+    def dispatch_event(self, caller: object, event: Event, exception_handlers: dict={}) -> None:
         logger.debug(
-            msg=f'*** dispatching event *** event_dispatcher={self}, event={event}, ignored_exceptions={ignored_exceptions}'
+            msg=f'*** dispatching event *** event_dispatcher={self}, event={event}'
         )
-        self.__event_handler.handle_event(caller=caller, event=event, ignored_exceptions=ignored_exceptions)
+        self.__event_handler.handle_event(caller=caller, event=event, exception_handlers=exception_handlers)
     

@@ -40,7 +40,7 @@ class i_Controller:
 
 
     @abstractmethod
-    def _handle_event(self, caller: Controllable, event: Event, ignored_exceptions: tuple=()) -> None:
+    def _handle_event(self, caller: Controllable, event: Event, exception_handlers: dict={}) -> None:
         """
         wrapper for the controller's owned event handler.
         is protected as it should not be accessed by user.
@@ -120,35 +120,35 @@ class Controller(i_Controller, Controllable, Hierarchy):
             msg=f'*** registering event *** event_handler={self}, event={event}, callback={callback}'
         )
 
-        identification: Hashable = None
+        event_id: Hashable = None
         if isinstance(event, Event):
-            identification = event.identification
+            event_id = event.id
         elif isinstance(event, str):
-            identification = event
+            event_id = event
         elif isinstance(event, Hashable):
-            identification = event
+            event_id = event
         else:
             raise ValueError
 
-        self.__event_handler.register_event_handler_callback(identification=identification, callback=callback)
+        self.__event_handler.register_event_handler_callback(id=event_id, callback=callback)
 
 
-    def _handle_event(self, caller: Controllable, event: Event, ignored_exceptions: tuple=()) -> None:
+    def _handle_event(self, caller: Controllable, event: Event, exception_handlers: dict={}) -> None:
         
         logger.debug(
-            msg=f'*** handling event *** event_handler={self}, caller={caller}, event={event}, ignored_exceptions={ignored_exceptions}'
+            msg=f'*** handling event *** event_handler={self}, caller={caller}, event={event}'
         )
 
         try:
-            self.__event_handler.handle_event(caller=caller, event=event, ignored_exceptions=ignored_exceptions)
+            self.__event_handler.handle_event(caller=caller, event=event, exception_handlers=exception_handlers)
         except Exception as err:
 
             if isinstance(err, event_handler_errors.EventNotRegisteredError):
-                self.__relay_event(caller=caller, event=event, ignored_exceptions=ignored_exceptions)
+                self.__relay_event(caller=caller, event=event, exception_handlers=exception_handlers)
             else:
                 raise err
 
-    def __relay_event(self, caller: Controllable, event: Event, ignored_exceptions: tuple) -> None:
+    def __relay_event(self, caller: Controllable, event: Event, exception_handlers: tuple) -> None:
         
         logger.debug(
             msg=f'*** relaying event ***'
@@ -157,7 +157,7 @@ class Controller(i_Controller, Controllable, Hierarchy):
         if self.is_toplevel():
             raise errors.FloatingEventError
         
-        self._event_dispatcher.dispatch_event(caller=caller, event=event, ignored_exceptions=ignored_exceptions)
+        self._event_dispatcher.dispatch_event(caller=caller, event=event, exception_handlers=exception_handlers)
 
 
     def initialize_view_frames_tk(self, master: t_Master) -> None:

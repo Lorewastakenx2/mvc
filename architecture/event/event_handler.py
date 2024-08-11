@@ -4,8 +4,11 @@ from architecture.event.event_handler_callback import EventHandlerCallback
 from logs import event_logger as logger
 
 from abc import abstractmethod
-from typing import Hashable, Callable
+from typing import Hashable, Callable, Union
 from inspect import FullArgSpec, getfullargspec
+
+
+t_Event = Union[Event, Hashable]
 
 class errors:
 
@@ -18,16 +21,18 @@ class errors:
             super().__init__(*args)
 
 
+
 class i_EventHandler:
 
     @abstractmethod
-    def register_event_handler_callback(self, identification: Hashable, callback: Callable) -> None:
+    def register_callback(self, event_id: Hashable, callback: Callable) -> None:
         """
         
         """
 
+
     @abstractmethod
-    def handle_event(self, caller: object, event: Event, ignored_exceptions: tuple=()) -> None:
+    def handle_event(self, caller: object, event: t_Event, exception_handlers: dict={}) -> None:
         """
         
         """
@@ -39,12 +44,13 @@ class EventHandler(i_EventHandler):
         logger.debug(
             msg=f'*** initializing EventHandler ***, event_handler={self}'
         )
+
         self.__registered_callbacks: dict = {}
 
 
-    def register_event_handler_callback(self, identification: Hashable, callback: Callable) -> None:
+    def register_event_handler_callback(self, event_id: Hashable, callback: Callable) -> None:
         
-        if identification in self.__registered_callbacks:
+        if event_id in self.__registered_callbacks:
             raise PermissionError
         
         _callback: EventHandlerCallback = None
@@ -76,38 +82,57 @@ class EventHandler(i_EventHandler):
             
             _callback = EventHandlerCallbackWrapper()
         
-        self.__registered_callbacks[identification] = _callback
+        self.__registered_callbacks[event_id] = _callback
 
         logger.debug(
-            msg=f'*** callback registered *** identification={identification}, callback={_callback}'
+            msg=f'*** callback registered *** event_id={event_id}, callback={_callback}'
         )
 
 
-    def handle_event(self, caller: object, event: Event, ignored_exceptions: tuple=()) -> None:
+    def handle_event(self, caller: object, event: t_Event, exception_handlers: dict={}) -> None:
 
         logger.debug(
-            msg=f'*** handling event *** handler={self}, caller={caller}, event={event}, ignored_exceptions={ignored_exceptions}'
+            msg=f'*** handling event *** handler={self}, caller={caller}, event={event}'
         )
 
-        if not self.__registered_callbacks:
-            raise errors.NoRegisteredEventsError
-        
-        if not event.identification in self.__registered_callbacks:
-            raise errors.EventNotRegisteredError
+        # if the sent event is not of type Event an event is created
 
-
-        callback: Callable = self.__registered_callbacks[event.identification]
+        _event: Event = None
+        if isinstance(event, Event):
+            _event = event
+        elif isinstance(event, Hashable):
+            _event = Event(id=_event)
+        else:
+            raise ValueError
 
         try:
 
+            if not self.__registered_callbacks:
+                raise errors.NoRegisteredEventsError
+        
+            if not event.event_id in self.__registered_callbacks:
+                raise errors.EventNotRegisteredError
+
+            callback: Callable = self.__registered_callbacks[event.event_id]
             callback(caller=caller, event=event)
 
         except Exception as err:
 
-            if isinstance(err, ignored_exceptions):
-                logger.debug(
-                    msg=f'*** ignored exception while handling event *** exception={err}'
-                )
+            logger.debug(
+                msg=f'*** exception occurred while handling event *** caller={caller}, event={event}, exception={err}'
+            )
+
+            if isinstance(err, exception_handlers):
+                exception_handler: Callable = exception_handlers[err.__class__]
+                if exception_handler:
+                    exception_handler()
+                    logger.debug(
+                        msg=f'*** exception handled ***'
+                    )
+                else:
+                    logger.debug(
+                        msg=f'*** exception ignored ***'
+                    )                    
             else:
                 raise err
 
