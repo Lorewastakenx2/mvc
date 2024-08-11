@@ -1,7 +1,8 @@
 
 from architecture.event.event import Event
+from logs import event_logger as logger
 
-import logging
+
 from abc import abstractmethod
 
 
@@ -24,11 +25,14 @@ class i_EventHandlerCallback:
 class EventHandlerCallback(i_EventHandlerCallback):
 
     def __call__(self, caller: object, event: Event) -> None:
-        logging.log(
-            level=logging.DEBUG, 
-            msg=f'*** executing callback ***'
+        logger.debug(
+            msg=f'*** executing callback *** caller={caller}, event={event}'
         )
         self.execute(caller=caller, event=event)
+        logger.debug(
+            msg=f'*** callback executed without errors ***'
+        )
+
 
     @abstractmethod
     def execute(self, caller: object, event: Event) -> None:

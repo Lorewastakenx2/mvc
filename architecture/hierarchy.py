@@ -1,5 +1,6 @@
 
 
+import logging
 from abc import abstractmethod
 
 
@@ -8,6 +9,12 @@ class i_Hierarchy:
 
     @abstractmethod
     def set_toplevel(self) -> None:
+        """
+        
+        """
+
+    @abstractmethod
+    def get_toplevel(self) -> object:
         """
         
         """
@@ -50,6 +57,13 @@ class Hierarchy(i_Hierarchy):
     __toplevel: i_Hierarchy = None
 
     def __init__(self) -> None:
+        logging.log(
+            level=logging.DEBUG,
+            msg=f'*** initializing Hierarchy *** instance={self}'
+        )
+
+        if self.get_toplevel() is None:
+            self.set_toplevel()
 
         self.__parent: i_Hierarchy = None
         self.__children: list = []
@@ -73,13 +87,31 @@ class Hierarchy(i_Hierarchy):
         self.__parent = parent
         self.__parent._register_child(child=self)
 
+        logging.log(
+            level=logging.DEBUG,
+            msg=f'*** parent registered *** parent={parent}, child={self}'
+        )
+
+
     def _register_child(self, child: i_Hierarchy) -> None:
         self.__children.append(child)
 
+
     def set_toplevel(self) -> None:
+        
         if self.__class__.__toplevel:
             raise PermissionError
+        
         self.__class__.__toplevel = self
+
+        logging.log(
+            level=logging.DEBUG,
+            msg=f'*** toplevel set *** cls={self.__class__}, toplevel={self}'
+        )
+
+    def get_toplevel(self) -> i_Hierarchy:
+        return self.__class__.__toplevel
+
 
     def is_toplevel(self) -> bool:
         return self is self.__class__.__toplevel

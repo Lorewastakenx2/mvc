@@ -1,7 +1,7 @@
 
+
 from abc import abstractmethod
 from typing import Hashable
-
 
 
 class i_Event:
@@ -37,7 +37,7 @@ class Event(i_Event):
 
     @property
     def payload(self) -> dict:
-        return self.payload
+        return self.__payload
 
 
 
