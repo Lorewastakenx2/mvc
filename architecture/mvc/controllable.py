@@ -1,54 +1,41 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# @Date    : 2024-08-17 11:53:17
+# @Author  : Your Name (you@example.org)
+# @Link    : link
+# @Version : 1.0.0
 
-from architecture.event.event import Event
-from architecture.event.event_dispatcher import EventDispatcher
-from logs import mvc_logger as logger
 
+"""
+Controllable
+"""
+
+from architecture.event.EventDispatcher import EventDispatcher
 
 from abc import abstractmethod
-from typing import Hashable
-
-"""
-controllable is owned by controller.
-controllable has no knowledge of controller.
-controllable owns an event dispatcher which is linked to the controller's event handler.
-"""
+from typing import Any, Callable, Hashable
 
 
 class i_Controllable:
 
 
-    @abstractmethod
-    def dispatch_event(self, event: Event, exception_handlers: dict={}) -> None:
-        """
-        wrapper method for the owned event dispatcher.
-        only exists to add the "caller" argument to the event dispatcher.
-        """
-
     @property
     @abstractmethod
-    def _event_dispatcher(self) -> EventDispatcher:
+    def event_dispatcher(self) -> EventDispatcher:
         """
-        protected variable for event dispatcher.
-        is accessed by controller for registration.
+        
         """
 
 
 class Controllable(i_Controllable):
     
     def __init__(self) -> None:
-        logger.debug(
-            msg=f'*** initializing Controllable *** controllable={self}'
-        )
+        
         self.__event_dispatcher: EventDispatcher = EventDispatcher()
+        self.__event_dispatcher.register_caller(caller=self)
 
     @property
-    def _event_dispatcher(self) -> EventDispatcher:
+    def event_dispatcher(self) -> EventDispatcher:
         return self.__event_dispatcher
 
-    def dispatch_event(self, event: Event, exception_handlers: dict={}) -> None:
 
-        logger.debug(
-            msg=f'*** dispatching event *** event_dispatcher={self}, event={event}, exception_handlers={exception_handlers}'
-        )
-
-        self.__event_dispatcher.dispatch_event(caller=self, event=event, exception_handlers=exception_handlers)

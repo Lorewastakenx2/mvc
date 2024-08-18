@@ -1,18 +1,29 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# @Date    : 2024-08-17 11:21:00
+# @Author  : Your Name (you@example.org)
+# @Link    : link
+# @Version : 1.0.0
+
+
+"""
+Event
+"""
 
 
 from abc import abstractmethod
-from typing import Hashable
+from typing import Any, Callable, Hashable
 
 
 class i_Event:
 
     @property
     @abstractmethod
-    def id(self) -> Hashable:
+    def trigger(self) -> Hashable:
         """
         
         """
-
+        
     @property
     @abstractmethod
     def payload(self) -> dict:
@@ -21,26 +32,30 @@ class i_Event:
         """
 
 
-class Event(i_Event):
-    
-    def __init__(self, id: Hashable, payload: dict={}) -> None:
-        
-        self.__id: Hashable = id
-        self.__payload: dict = payload
-
-    def __hash__(self) -> int:
-        return hash(self.__id)
-    
+    @abstractmethod
     def __str__(self) -> str:
-        return f'Event(id={self.__id}, payload={self.__payload})'
+        """
+        
+        """
+
+
+class Event(i_Event):
+
+    def __init__(self, trigger: Hashable, payload: dict=None) -> None:
+        
+        self.__trigger: Hashable = trigger
+        self.__payload: dict = payload or {}
     
     @property
-    def id(self) -> Hashable:
-        return self.__id
+    def trigger(self) -> Hashable:
+        return self.__trigger
 
     @property
     def payload(self) -> dict:
         return self.__payload
 
+
+    def __str__(self) -> str:
+        return f'Event(trigger={self.__trigger}, payload={self.__payload})'
 
 

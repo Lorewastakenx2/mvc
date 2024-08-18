@@ -1,163 +1,168 @@
 
-from architecture.mvc.controllable import Controllable
-from architecture.mvc.model import Model
-from architecture.mvc.view import View, t_Master
-from architecture.event.event import Event
-from architecture.event.event_handler import EventHandler
-from architecture.event.event_handler import errors as event_handler_errors
-from architecture.event.exception_handler import ExceptionHandler
-from architecture.hierarchy import Hierarchy
-from logs import mvc_logger as logger
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# @Date    : 2024-08-17 11:53:08
+# @Author  : Your Name (you@example.org)
+# @Link    : link
+# @Version : 1.0.0
 
+
+"""
+Controller
+
+handles event specific registration between controllers and controllables
+
+
+"""
+
+from architecture.event.EventListener import EventListener, EventNotRegisteredError
+from architecture.event.EventManager import EventManager
+
+from .Controllable import Controllable
+from .Model import Model
+from .View import View
+
+from architecture.misc import overwrite_protection
 
 from abc import abstractmethod
-from typing import Callable, Hashable
-import tkinter as tk
-
-
-class errors:
-
-    class FloatingEventError(Exception):
-        def __init__(self, *args: object) -> None:
-            super().__init__(*args)
+from typing import Any, Callable, Hashable
 
 
 
 class i_Controller:
 
-    @abstractmethod
-    def register_controllable(self, controllable: Controllable) -> None:
-        """
-        controllables are registered to the controller.
-        the controller registers controller related 
-        parameters in the controllable.
-        """
-
-    @abstractmethod
-    def register_event(self, event: Event, callback: Callable) -> None:
-        """
-        
-        """
 
     @property
     @abstractmethod
     def model(self) -> Model:
         """
-        read only.
+        
         """
+
 
     @property
     @abstractmethod
     def view(self) -> View:
         """
-        read only.
+        
         """
 
+    @property
     @abstractmethod
-    def initialize_tk_frames(self, root: tk.Tk) -> None:
+    def event_listener(self) -> EventListener:
+        """
+        
+        """
+
+    @property
+    @abstractmethod
+    def parent(self) -> 'Controller':
         """
         
         """
 
 
-class Controller(i_Controller, Controllable, Hierarchy):
+    @overwrite_protection
+    @abstractmethod
+    def register_controllable(self, controllable: Controllable) -> Exception:
+        """
+        
+        """
+
+
+
+class Controller(i_Controller, Controllable):
 
     def __init__(self) -> None:
-        logger.debug(
-            msg=f'*** initializing Controller *** controller={self}'
-        )
-        Hierarchy.__init__(self)
 
-        if self.get_toplevel() is None: # all this shit should happen in hierarchy classs
-            self.set_toplevel()
+        self.__parent: Controller = None
 
-        if not self.is_toplevel():
-            Controllable.__init__(self) # TODO: have this be done during registration of parent
-                                        # or i dunno there are many things i dont like about the hierarchy class
-        
+        self.__event_listener: EventListener = EventListener()        
+
+        self.__event_manager: EventManager = EventManager()
+        self.__event_manager.register_listener(listener=self.__event_listener)
+
         self.__model: Model = None
-        self.__view: View = None
-        self.__event_handler: EventHandler = EventHandler()
+        self.__view:  View = None
+
 
     @property
     def model(self) -> Model:
         return self.__model
-    
+
+
     @property
     def view(self) -> View:
         return self.__view
 
-    def register_controllable(self, controllable: Controllable) -> None:
+
+    @property
+    def event_listener(self) -> EventListener:
+        return self.__event_listener
+
+
+    @property
+    def parent(self) -> 'Controller':
+        return self.__parent
+
+
+    @overwrite_protection
+    def register_controllable(self, controllable: Controllable) -> Exception:
+
+        err: Exception = None
         
-        controllable._event_dispatcher.register_event_handler(handler=self.__event_handler)
-
-        controllable._event_dispatcher.register_standard_exception_handler(
-            exception=event_handler_errors.EventNotRegisteredError,
-            handler=self.__relay_event
-        )
-        controllable._event_dispatcher.register_standard_exception_handler(
-            exception=event_handler_errors.NoRegisteredEventsError,
-            handler=self.__relay_event
-        )
-
-        # type specific registration
-
         if isinstance(controllable, Model):
-            if self.__model:
-                raise PermissionError
-            self.__model = controllable
+            err = self.__register_model(model=controllable)
+
         elif isinstance(controllable, View):
-            if self.__view:
-                raise PermissionError
-            self.__view = controllable
+            err = self.__register_view(view=controllable)
+
         elif isinstance(controllable, Controller):
-            controllable.register_parent(parent=self)
+            err = self.__register_controller(controller=controllable)
+
         else:
             raise ValueError
 
-    def register_event(self, event: Event, callback: Callable) -> None:
-
-        logger.debug(
-            msg=f'*** registering event *** event_handler={self}, event={event}, callback={callback}'
-        )
-
-        event_id: Hashable = None
-        if isinstance(event, Event):
-            event_id = event.id
-        elif isinstance(event, str):
-            event_id = event
-        elif isinstance(event, Hashable):
-            event_id = event
-        else:
-            raise ValueError
-
-        self.__event_handler.register_callback(event_id=event_id, callback=callback)
+        return err
 
 
-    def __relay_event(self, caller: Controllable, event: Event, err: Exception) -> None:
+    def __register_model(self, model: Model) -> Exception:
         
-        logger.debug(
-            msg=f'*** relaying event ***'
-        )
+        err: Exception = None
+        if self.__model:
+            err = PermissionError
 
-        if self.is_toplevel():
-            raise errors.FloatingEventError
-        
-        self._event_dispatcher.dispatch_event(caller=caller, event=event)
-
-
-    def initialize_tk_frames(self, master: t_Master) -> None:
-
-        if self.is_toplevel():
-            if not isinstance(master, tk.Tk):
-                raise ValueError
-        else:
-            if isinstance(master, tk.Tk):
-                raise PermissionError
+        self.__model = model
+        self.__model.event_dispatcher.register_manager(manager=self.__event_manager)
+        return err
             
-        self.view.initialize_frame(master=master)
-        if self.children:
-            for _child in self.children:
-                child: Controller = _child
-                child.initialize_tk_frames(master=self.view.frame)
-        
+
+    def __register_view(self, view: View) -> Exception:
+
+        err: Exception = None
+        if self.__view:
+            err = PermissionError
+
+        self.__view = view
+        self.__view.event_dispatcher.register_manager(manager=self.__event_manager)
+        return err
+    
+
+    def __register_controller(self, controller: 'Controller') -> Exception:
+
+        err: Exception = None
+        if controller.parent:
+            err = PermissionError
+
+        Controllable.__init__(controller)
+        controller.__parent = self
+        controller.event_dispatcher.register_manager(manager=self.__event_manager)
+
+        controller.event_listener.register_exception_handler(
+            exception=EventNotRegisteredError, handler=lambda event, caller:
+            self.event_listener.trigger_event(event=event, caller=caller)
+        )
+        return err
+
+
+

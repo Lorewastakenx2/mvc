@@ -1,20 +1,26 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# @Date    : 2024-08-17 11:54:56
+# @Author  : Your Name (you@example.org)
+# @Link    : link
+# @Version : 1.0.0
 
-from architecture.mvc.controllable import Controllable
-from logs import mvc_logger as logger
+
+"""
+Model
+"""
+
+from .Controllable import Controllable
+
 
 from abc import abstractmethod
-
+from typing import Any, Callable, Hashable
 
 
 class i_Model:
     pass
 
 
-
 class Model(i_Model, Controllable):
-    
-    def __init__(self) -> None:
-        logger.debug(
-            msg=f'*** initializing Model *** model={self}'
-        )
-        Controllable.__init__(self)
+    pass
+
