@@ -9,10 +9,6 @@
 
 """
 Controller
-
-handles event specific registration between controllers and controllables
-
-
 """
 
 from architecture.event.EventListener import EventListener, EventNotRegisteredError
