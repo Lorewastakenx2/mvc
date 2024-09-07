@@ -1,83 +1,36 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-# @Date    : 2024-08-17 11:19:59
-# @Author  : Your Name (you@example.org)
-# @Link    : link
-# @Version : 1.0.0
+
+from typing import Any
+
+from .Event import Event
+from .EventBus import EventBus
 
 
-"""
-EventDispatcher
-"""
-
-from architecture.event.Event import Event
-from architecture.event.EventManager import EventManager
-
-from architecture.misc import overwrite_protection
-
-
-from abc import abstractmethod
-from typing import Any, Callable, Hashable
-
-
-
-class i_EventDispatcher:
+class EventDispatcher:
     
-
-    @overwrite_protection
-    @abstractmethod
-    def register_manager(self, manager: EventManager) -> Exception:
-        """
+    def __init__(self, owner: Any) -> None:
         
-        """
+        self.__bus: EventBus = None
+        self.__owner: Any = owner
 
-    @overwrite_protection
-    @abstractmethod
-    def register_caller(self, caller: object) -> Exception:
-        """
+    def register_bus(self, bus: EventBus) -> None:
         
-        """
-
-
-    @abstractmethod
-    def dispatch_event(self, event: Event) -> None:
-        """
+        if not self.__manager is None:
+            raise PermissionError
         
-        """
+        self.__bus = bus
 
+    #def register_default_caller(self, caller: object) -> None:
 
+    #    if not self.__caller is None:
+    #        raise PermissionError
 
-class EventDispatcher(i_EventDispatcher):
-    
-    def __init__(self) -> None:
-        
-        self.__manager: EventManager = None
-        self.__caller: object = None
-
-
-    @overwrite_protection
-    def register_manager(self, manager: EventManager) -> Exception:
-        
-        err: Exception = None
-        if self.__manager:
-            err = PermissionError
-
-        self.__manager = manager
-        return err
-
-
-    @overwrite_protection
-    def register_caller(self, caller: object) -> Exception:
-
-        err: Exception = None
-        if self.__caller:
-            err = PermissionError
-
-        self.__caller = caller
-        return err
-
+    #    self.__caller = caller
 
     def dispatch_event(self, event: Event) -> None:
-        self.__manager.notify_event(event=event, caller=self.__caller)
+        self.__bus.notify_event(event=event, caller=self.__owner)
 
-
+    def schedule_event_for_dispatch(self, event: Event) -> None:
+        raise NotImplementedError
+    
+    def dispatch_scheduled_events(self) -> None:
+        raise NotImplementedError

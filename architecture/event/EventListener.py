@@ -1,25 +1,8 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-# @Date    : 2024-08-17 11:20:12
-# @Author  : Your Name (you@example.org)
-# @Link    : link
-# @Version : 1.0.0
 
+from typing import Callable, Hashable
+from inspect import FullArgSpec, getfullargspec
 
-"""
-EventListener
-"""
-
-from architecture.event.Event import Event
-
-from architecture.misc import overwrite_protection
-
-from inspect import getfullargspec, FullArgSpec
-
-
-from abc import abstractmethod
-from typing import Any, Callable, Hashable
-
+from .Event import Event
 
 
 class EventNotRegisteredError(Exception):
@@ -27,37 +10,12 @@ class EventNotRegisteredError(Exception):
         super().__init__(*args)
 
 
-
-class i_EventListener:
-    
-    @abstractmethod
-    def trigger_event(self, event: Event) -> None:
-        """
-        
-        """
-
-    @overwrite_protection
-    @abstractmethod
-    def register_event_handler(self, trigger: Hashable, handler: Callable) -> Exception:
-        """
-        
-        """
-
-    @overwrite_protection
-    @abstractmethod
-    def register_exception_handler(self, exception: Exception, handler: Callable) -> Exception:
-        """
-        
-        """
-
-
-class EventListener(i_EventListener):
+class EventListener:
     
     def __init__(self) -> None:
         
         self.__event_handlers: dict = {}
         self.__exception_handlers: dict = {}
-
 
     def trigger_event(self, event: Event, caller: object) -> None:
         
@@ -81,7 +39,6 @@ class EventListener(i_EventListener):
             else:
                 raise err
 
-
     def __trigger_event(self, event: Event, caller: object) -> None:
 
         if not event.trigger in self.__event_handlers:
@@ -98,31 +55,16 @@ class EventListener(i_EventListener):
 
         event_handler(**kwargs)
 
-
-    @overwrite_protection
-    def register_event_handler(self, trigger: Hashable, handler: Callable) -> Exception:
+    def register_event_handler(self, trigger: Hashable, handler: Callable) -> None:
     
-        err: Exception = None
-        if trigger in self.__event_handlers and self.__event_handlers[trigger] is not None:
-            err = PermissionError
-
-        self.__event_handlers[trigger] = handler
-        return err
-
-
-    @overwrite_protection
-    def register_exception_handler(self, exception: Exception, handler: Callable) -> Exception:
+        if trigger in self.__event_handlers:
+            raise PermissionError
         
-        err: Exception = None
-        if exception in self.__exception_handlers and self.__exception_handlers[exception] is not None:
-            err = PermissionError
+        self.__event_handlers[trigger] = handler
+
+    def register_exception_handler(self, exception: Exception, handler: Callable) -> None:
+        
+        if exception in self.__exception_handlers:
+            raise PermissionError
 
         self.__exception_handlers[exception] = handler
-        return err
-
-
-
-    
-
-
-
