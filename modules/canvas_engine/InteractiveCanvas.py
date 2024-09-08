@@ -40,6 +40,7 @@ class InteractiveCanvas(View):
 
         self.__running: bool = False
         self.__update_delay: int = 33
+        self.__issue_update_events: bool = False
 
         self.__cursor_x: int = None
         self.__cursor_y: int = None
@@ -61,6 +62,9 @@ class InteractiveCanvas(View):
     @property
     def cursor_position(self) -> tuple[int, int]:
         return (self.__cursor_x, self.__cursor_y)
+
+    def issue_update_events(self) -> None:
+        self.__issue_update_events = True
 
     def new_element(self, element: 'InteractiveCanvas.CanvasElement') -> None:
         self.__elements[element.id] = element
@@ -86,6 +90,14 @@ class InteractiveCanvas(View):
 
         self.__update_focused_element_id()
         self.__update_elements()
+
+        if self.__issue_update_events:
+
+            self.event_dispatcher.schedule_event_for_dispatch(
+                event=Event(
+                    trigger='UpdateEvent'
+                )
+            )
 
         self.event_dispatcher.dispatch_scheduled_events()
 
@@ -201,19 +213,29 @@ if __name__ == '__main__':
     from architecture.event.EventBus import EventBus
     from architecture.event.EventListener import EventNotRegisteredError
 
+    points = []
 
     def make_point() -> None:
         point = Point(x=engine.cursor_position[0], y=engine.cursor_position[1])
+        points.append(point)
         engine.new_element(element=point)
         engine.schedule_element_update(element_id=point.id)
 
+    def make_it_rain() -> None:
+        for point in points:
+            point.y += 0.5
+            engine.schedule_element_update(element_id=point.id)
+
     listener = EventListener()
     listener.register_event_handler(trigger='CanvasLeftClick', handler=make_point)
+    listener.register_event_handler(trigger='UpdateEvent', handler=make_it_rain)
     listener.register_exception_handler(exception=EventNotRegisteredError, handler=lambda event: print(event))
 
     bus = EventBus()
     bus.add_listener(listener)
     engine.event_dispatcher.register_bus(bus)
+
+    engine.issue_update_events()
 
 
     root.mainloop()
