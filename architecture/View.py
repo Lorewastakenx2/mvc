@@ -47,9 +47,11 @@ class View(Controllable):
 
         # initialize default bindings
 
-        self.Binding(context=self.__frame, identifier='EnterView', sequence='<Enter>', func=self._enter)
-        self.Binding(context=self.__frame, identifier='LeaveView', sequence='<Leave>', func=self._leave)
-        self.Binding(context=self.__frame, identifier='ConfigureView', sequence='<Configure>', func=self._configure)
+        self.Binding(context=self.__frame, identifier='EnterView', sequence='<Enter>', func=self.__enter)
+        self.Binding(context=self.__frame, identifier='LeaveView', sequence='<Leave>', func=self.__leave)
+        self.Binding(context=self.__frame, identifier='ConfigureView', sequence='<Configure>', func=self.__configure)
+
+        self._dynamic_binding_list: list[str] = []
 
         for _, binding in self.__bindings.items():
             binding.activate()
@@ -72,30 +74,8 @@ class View(Controllable):
         return self.__bindings
 
     @property
-    def size(self) -> tuple:
-        return tuple(self.__size_x, self.__size_y, self.__size_w, self.__size_h)
-
-
-    def _enter(self, tk_event: tk.Event) -> None:
-        """
-        default binding
-        """
-
-
-    def _leave(self, tk_event: tk.Event) -> None:
-        """
-        default binding
-        """
-
-    def _configure(self, tk_event: tk.Event) -> None:
-        """
-        default binding
-        """
-
-        self.__size_x = tk_event.x
-        self.__size_y = tk_event.y
-        self.__size_w = tk_event.width
-        self.__size_h = tk_event.height
+    def size(self) -> tuple[int, int, int, int]:
+        return (self.__size_x, self.__size_y, self.__size_w, self.__size_h)
 
     def Binding(self, context: tk.Widget, identifier: Hashable, sequence: str, func: Callable) -> None:
 
@@ -104,3 +84,35 @@ class View(Controllable):
 
         binding: self.__Binding = self.__Binding(context=context, sequence=sequence, func=func)
         self.__bindings[identifier] = binding
+
+    def __enter(self, tk_event: tk.Event) -> None:
+
+        for identifier in self._dynamic_binding_list:
+            self.__bindings[identifier].activate()
+
+        self._enter(tk_event)
+
+    def __leave(self, tk_event: tk.Event) -> None:
+
+        for identifier in self._dynamic_binding_list:
+            self.__bindings[identifier].deactivate()
+
+        self._leave(tk_event)
+
+    def __configure(self, tk_event: tk.Event) -> None:
+
+        self.__size_x = tk_event.x
+        self.__size_y = tk_event.y
+        self.__size_w = tk_event.width
+        self.__size_h = tk_event.height
+
+        self._configure(tk_event)
+
+    def _enter(self, tk_event: tk.Event) -> None:
+        pass
+
+    def _leave(self, tk_event: tk.Event) -> None:
+        pass
+
+    def _configure(self, tk_event: tk.Event) -> None:
+        pass
