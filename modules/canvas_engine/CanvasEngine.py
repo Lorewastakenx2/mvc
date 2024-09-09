@@ -4,104 +4,32 @@ from architecture.event.Event import Event
 
 import tkinter as tk
 from abc import abstractmethod
-from typing import Hashable
 
-t_CanvasId = int
-t_ElementId = int
-
-
-class CanvasElement:
-
-    __canvas_element_counter: int = 0
-
-    def __init__(self, context: tk.Canvas) -> None:
-
-        self.__id: int = self.__class__.__canvas_element_counter
-        self.__class__.__canvas_element_counter += 1
-
-        self.__canvas_id: int = None
-
-        self._context: tk.Canvas = context 
-        self._tag: int = None
-
-    @property
-    def id(self) -> int:
-        return self.__id
-    
-    @property
-    def canvas_id(self) -> int:
-        return self.__canvas_id
-
-    def set_state(self, state: str) -> None:
-        pass
-
-    def delete(self) -> None:
-        if self._tag is not None:
-            self._context.delete(self._tag)
-            self._tag = None
-
-    def draw(self) -> None:
-        pass
-
-    def _draw(self) -> None:
-
-class Point(CanvasElement):
-
-    radius: int = 3
-    fill: str = 'black'
-
-    def __init__(self, context: tk.Canvas, x: int, y: int) -> None:
-        CanvasElement.__init__(self, context=context)
-
-        self.x: int = x
-        self.y: int = y
-
-    def draw(self) -> None:
-        
-        tag: str = self._context.create_oval(
-            self.x + self.__class__.radius,
-            self.y + self.__class__.radius,
-            self.x - self.__class__.radius,
-            self.y - self.__class__.radius,
-            fill=self.__class__.fill,
-            tags=('Selectable', 'Highlightable')
-        )
-
-        self.__canvas_id = tag
-
-
-class Line(CanvasElement):
-
-    width: int = 1
-
-    def __init__(self, context: tk.Canvas, p0: Point, p1: Point) -> None:
-        CanvasElement.__init__(self, context=context)
-
-        self.p0: Point = p0
-        self.p1: Point = p1
-    
-    def draw(self) -> None:
-
-        tag: str = self._context.create_line(
-            self.p0.x, 
-            self.p0.y, 
-            self.p1.x, 
-            self.p1.y,
-            width=self.__class__.width
-        )
-
-        self._tag = tag
-
+SELECTION_SEARCH_RADIUS: int = 5
+UPDATE_DELAY: int = 33
 
 
 class CanvasEngine(View):
 
-    selection_search_radius: int = 5
+    class CanvasElement:
+
+        __id_counter: int = 0
+
+        def __init__(self) -> None:
+            
+            self.__id: int = self.__class__.__id_counter
+            self.__class__.__id_counter += 1
+
+        @property
+        def id(self) -> int:
+            return self.__id
+
+        @abstractmethod
+        def draw(self, context: tk.Canvas) -> int:
+            pass
 
     def __init__(self, master: tk.Tk | tk.Toplevel | tk.Frame) -> None:
         View.__init__(self, master=master)
-
-        # canvas styles
 
         self.__canvas: tk.Canvas = tk.Canvas(master=self.frame)
         self.__canvas.pack(expand=True, fill=tk.BOTH)
@@ -111,28 +39,20 @@ class CanvasEngine(View):
             cursor='crosshair'
         )
 
-        # engine refresh
-
         self.__running: bool = False
-        self.__update_delay: int = 33
-
-        # engine data
+        self.__update_delay: int = UPDATE_DELAY
+        self.__issue_update_events: bool = False
 
         self.__cursor_x: int = None
         self.__cursor_y: int = None
 
-        self.__new_canvas_elements: list[CanvasElement] = []
-        self.__canvas_elements: dict[t_CanvasId, CanvasElement] = {}
-        self.__canvas_element_ids_scheduled_for_update: list[t_CanvasId] = []
+        self.__elements: dict[int, CanvasEngine.CanvasElement] = {}
 
-        self.__soft_selection_element_id: t_CanvasId = None
-        self.__hard_selection_element_ids: list[t_CanvasId] = []
+        self.__element_id_volatile_id_lookup_table: dict[int, int] = {}
+        self.__element_volatile_id_id_lookup_table: dict[int, int] = {}
 
-        # engine state
-
-        self.__element_creation_context: type = None
-
-        # bindings
+        self.__focused_element_id: int = None
+        self.__element_ids_scheduled_for_update: set[int] = set()
 
         self.Binding(context=self.__canvas, identifier='CanvasMotion', sequence='<Motion>', func=self.__motion)
         self.Binding(context=self.__canvas, identifier='CanvasLeftClick', sequence='<Button-1>', func=self.__left_click)
@@ -140,6 +60,24 @@ class CanvasEngine(View):
 
         self._dynamic_binding_list = ['CanvasMotion', 'CanvasLeftClick', 'CanvasRightClick']
 
+    @property
+    def cursor_position(self) -> tuple[int, int]:
+        return (self.__cursor_x, self.__cursor_y)
+
+    def issue_update_events(self) -> None:
+        self.__issue_update_events = True
+
+    def new_element(self, element: 'CanvasEngine.CanvasElement') -> None:
+        self.__elements[element.id] = element
+
+    def schedule_element_update(self, element_id: int) -> None:
+        self.__element_ids_scheduled_for_update.add(element_id)
+
+    def _enter(self, _: tk.Event) -> None: # override
+        self.__run()
+
+    def _leave(self, _: tk.Event) -> None: # override
+        self.__stop()
 
     def __run(self) -> None:
 
@@ -151,130 +89,154 @@ class CanvasEngine(View):
 
     def __update(self) -> None:
 
-        self.__update_element_positions()
-        self.__update_element_soft_selection_state()
-        self.__update_element_hard_selection_state()
-        self.__draw_elements_scheduled_for_update()
-        self.__draw_new_elements()
+        self.__update_focused_element_id()
+        self.__update_elements()
+
+        if self.__issue_update_events:
+
+            self.event_dispatcher.schedule_event_for_dispatch(
+                event=Event(
+                    trigger='UpdateEvent'
+                )
+            )
+
+        self.event_dispatcher.dispatch_scheduled_events()
 
         if self.__running:
             self.frame.winfo_toplevel().after(self.__update_delay, self.__update)
 
-    def __update_element_positions(self) -> None:
-        pass
+    def __update_elements(self) -> None:
 
-    def __update_element_soft_selection_state(self) -> None:
+        for element_id in self.__element_ids_scheduled_for_update:
 
-        overlapping_element_ids: tuple[t_CanvasId] = self.__canvas.find_overlapping(
-            x1=self.__cursor_x - self.__class__.selection_search_radius, 
-            y1=self.__cursor_y - self.__class__.selection_search_radius, 
-            x2=self.__cursor_x + self.__class__.selection_search_radius, 
-            y2=self.__cursor_y + self.__class__.selection_search_radius
+            element: CanvasEngine.CanvasElement = self.__elements[element_id]
+
+            try:
+                volatile_id: int = self.__element_id_volatile_id_lookup_table[element_id]
+                self.__canvas.delete(volatile_id)
+                del self.__element_volatile_id_id_lookup_table[volatile_id]
+            except KeyError:
+                pass
+
+            volatile_id: int = element.draw(context=self.__canvas)
+
+            self.__element_id_volatile_id_lookup_table[element_id] = volatile_id
+            self.__element_volatile_id_id_lookup_table[volatile_id] = element_id
+
+        self.__element_ids_scheduled_for_update.clear()
+
+    def __update_focused_element_id(self) -> None:
+
+        overlapping_element_volatile_ids: tuple[int] = self.__canvas.find_overlapping(
+            x1=self.__cursor_x - SELECTION_SEARCH_RADIUS, 
+            y1=self.__cursor_y - SELECTION_SEARCH_RADIUS, 
+            x2=self.__cursor_x + SELECTION_SEARCH_RADIUS, 
+            y2=self.__cursor_y + SELECTION_SEARCH_RADIUS
         )
                 
-        selection_element_id: t_CanvasId = None
+        focused_element_volatile_id: int = None
         
         try:
-            closest_element_id: t_CanvasId = self.__canvas.find_closest(x=self.__cursor_x, y=self.__cursor_y)[0]
-            if closest_element_id in overlapping_element_ids:
-                selection_element_id = closest_element_id
+            closest_element_volatile_id: int = self.__canvas.find_closest(x=self.__cursor_x, y=self.__cursor_y)[0]
+            if closest_element_volatile_id in overlapping_element_volatile_ids:
+                focused_element_volatile_id = closest_element_volatile_id
         except IndexError:
             pass
 
-        print(self.__canvas_elements)
-        
-        if self.__soft_selection_element_id is None and selection_element_id is not None:
+        focused_element_id: int = None
 
-            self.__canvas_elements[selection_element_id].set_state(state='SoftSelect')
-            self.__canvas_element_ids_scheduled_for_update.append(selection_element_id)
-            self.__soft_selection_element_id = selection_element_id
+        if focused_element_volatile_id is not None:
+            focused_element_id = self.__element_volatile_id_id_lookup_table[focused_element_volatile_id]
 
-        elif self.__soft_selection_element_id is not None and selection_element_id is not None:
+        if focused_element_id != self.__focused_element_id:
 
-            self.__canvas_elements[self.__soft_selection_element_id].set_state(state=None)
-            self.__canvas_elements[selection_element_id].set_state(state='SoftSelect')
-            self.__canvas_element_ids_scheduled_for_update.append(self.__soft_selection_element_id)
-            self.__canvas_element_ids_scheduled_for_update.append(selection_element_id)
-            self.__soft_selection_element_id = selection_element_id
+            self.event_dispatcher.schedule_event_for_dispatch(
+                event=Event(
+                    trigger='FocusChanged',
+                    payload={
+                        'from': self.__focused_element_id,
+                        'to': focused_element_id
+                    }
+                )
+            )
 
-        elif self.__soft_selection_element_id is not None and selection_element_id is None:
-
-            self.__canvas_elements[self.__soft_selection_element_id].set_state(state=None)
-            self.__canvas_element_ids_scheduled_for_update.append(self.__soft_selection_element_id)
-            self.__soft_selection_element_id = None
-            
-
-
-
-    def __update_element_hard_selection_state(self) -> None:
-        pass
- 
-    def __draw_new_elements(self) -> None:
-
-        for element in self.__new_canvas_elements:
-
-            element.draw()
-            self.__canvas_elements[element.canvas_id] = element
-        
-        self.__new_canvas_elements = []
-
-    def __draw_elements_scheduled_for_update(self) -> None:
-
-        for element_id in self.__canvas_element_ids_scheduled_for_update:
-            element: CanvasElement = self.__canvas_elements[element_id]
-
-            previous_canvas_id: int = element.canvas_id
-            
-            element.delete()
-            element.draw()
-
-            current_canvas_id: int = element.canvas_id
-
-            del self.__canvas_elements[previous_canvas_id]
-            self.__canvas_elements[current_canvas_id] = element
-            element.canvas_id = current_canvas_id
-
-        self.__canvas_element_ids_scheduled_for_update = []
-
-
-    def _enter(self, tk_event: tk.Event) -> None:
-        self.__run()
-
-    def _leave(self, tk_event: tk.Event) -> None:
-        self.__stop()
-
-    def set_element_creation_context(self, context: type) -> None:
-
-        if context not in [Point, Line]:
-            raise ValueError
-
-        self.__element_creation_context = context
-
+            self.__focused_element_id = focused_element_id    
+    
     def __motion(self, tk_event: tk.Event) -> None:
 
         self.__cursor_x = tk_event.x
         self.__cursor_y = tk_event.y
 
     def __left_click(self, tk_event: tk.Event) -> None:
-        print(tk_event)
 
-        if self.__element_creation_context == Point:
-
-            point: Point = Point(context=self.__canvas, x=self.__cursor_x, y=self.__cursor_y)
-            self.__new_canvas_elements.append(point)
+        self.event_dispatcher.schedule_event_for_dispatch(
+            event=Event(
+                trigger='CanvasLeftClick',
+                payload={
+                    'tk_event': tk_event,
+                    'focused_element_id': self.__focused_element_id
+                }
+            )
+        )
 
     def __right_click(self, tk_event: tk.Event) -> None:
-        print(tk_event)
+
+        self.event_dispatcher.schedule_event_for_dispatch(
+            event=Event(
+                trigger='CanvasRightClick',
+                payload={
+                    'tk_event': tk_event,
+                    'focused_element_id': self.__focused_element_id
+                }
+            )
+        )
 
 
 if __name__ == '__main__':
 
     root = tk.Tk()
 
-    engine = CanvasEngineView(master=root)
+    engine = CanvasEngine(master=root)
     engine.frame.pack(expand=True, fill=tk.BOTH)
-    engine.set_element_creation_context(context=Point)
 
-    print(engine.view_type)
+    class Point(CanvasEngine.CanvasElement):
+
+        def __init__(self, x, y) -> None:
+            super().__init__()
+
+            self.x = x
+            self.y = y
+
+        def draw(self, context: tk.Canvas) -> int:
+            return context.create_oval(self.x - 5, self.y - 5, self.x + 5, self.y + 5)
+
+    from architecture.event.EventListener import EventListener
+    from architecture.event.EventBus import EventBus
+    from architecture.event.EventListener import EventNotRegisteredError
+
+    points = []
+
+    def make_point() -> None:
+        point = Point(x=engine.cursor_position[0], y=engine.cursor_position[1])
+        points.append(point)
+        engine.new_element(element=point)
+        engine.schedule_element_update(element_id=point.id)
+
+    def make_it_rain() -> None:
+        for point in points:
+            point.y += 0.5
+            engine.schedule_element_update(element_id=point.id)
+
+    listener = EventListener()
+    listener.register_event_handler(trigger='CanvasLeftClick', handler=make_point)
+    listener.register_event_handler(trigger='UpdateEvent', handler=make_it_rain)
+    listener.register_exception_handler(exception=EventNotRegisteredError, handler=lambda event: print(event))
+
+    bus = EventBus()
+    bus.add_listener(listener)
+    engine.event_dispatcher.register_bus(bus)
+
+    engine.issue_update_events()
+
 
     root.mainloop()
